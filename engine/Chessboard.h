@@ -24,5 +24,14 @@ private:
     bool CheckMoveQueen(bool is_black_move);
     bool CheckMoveKing(bool is_black_move);
 
-    char table[8][8];
+
+    bool _is_black_move;
+    bool _white_can_kingside_castling;
+    bool _white_can_queenside_castling;
+    bool _black_can_kingside_castling;
+    bool _black_can_queenside_castling;
+    Coords _en_passant_square;
+    int _moves_without_capture_counter;
+    int _moves_counter;
+    char _table[8][8];
 };
