@@ -9,12 +9,8 @@ bool CheckCol(char col) noexcept {
 }
 
 Coords::Coords(char row, char col) noexcept {
-    if (CheckRow(row) && CheckCol(col)) {
-        _row = row;
-        _col = col;
-    } else {
-        // TODO придумать, что делать в случае неверно заданных координат
-    }
+    SetRow(row);
+    SetCol(col);
 }
 
 char Coords::GetRow() const noexcept {
@@ -32,6 +28,21 @@ int Coords::GetRowIndex() const noexcept {
 int Coords::GetColIndex() const noexcept {
     return _col - 1;
 }
+void Coords::SetCol(char col) noexcept {
+    if (CheckCol(col)) {
+        _col = col;
+    } else {
+        _col = 0;
+    }
+}
+
+void Coords::SetRow(char row) noexcept {
+    if (CheckRow(row)) {
+        _row = row;
+    } else {
+        _col = 0;
+    }
+}
 
 std::string Coords::ToString() const noexcept {
     std::string s;
@@ -39,7 +50,7 @@ std::string Coords::ToString() const noexcept {
     return s;
 }
 
-std::ostream& operator << (std::ostream& in, const Coords& coords) {
-    return in << coords.GetRow() << coords.GetCol();
+std::ostream& operator << (std::ostream& out, const Coords& coords) {
+    return out << coords.GetRow() << coords.GetCol();
 }
 
