@@ -1,11 +1,11 @@
 #include "Coords.h"
 
 bool CheckRow(char row) noexcept {
-    return 'A' <= row && row <= 'H';
+    return '1' <= row && row <= '8';
 };
 
 bool CheckCol(char col) noexcept {
-    return 1 <= col && col <= 8;
+    return 'A' <= col && col <= 'H';
 }
 
 Coords::Coords(char row, char col) noexcept {
