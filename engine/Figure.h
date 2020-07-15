@@ -12,6 +12,7 @@ enum class Figure {
     PAWN,
     KNIGHT,
     BISHOP,
+    ROOK,
     QUEEN,
     KING
 };
@@ -19,6 +20,9 @@ enum class Figure {
 struct ColoredFigure {
     Color color;
     Figure figure;
+
+    ColoredFigure()
+        : color(Color::WHITE), figure(Figure::NOTHING) {}
 
     ColoredFigure(Color color, Figure figure)
         : color(color), figure(figure) {}
