@@ -1,17 +1,25 @@
 #include "Chessboard.h"
 
+#include <map>
 #include <sstream>
-#include <set>
-#include <vector>
 
-std::set<char> figures = {'p', 'r', 'n', 'b', 'q', 'k', 'P', 'R', 'N', 'B', 'Q', 'K'};
+std::map<char, ColoredFigure> char_to_figure = {
+        {'P', {Color::WHITE, Figure::PAWN}},
+        {'N', {Color::WHITE, Figure::KNIGHT}},
+        {'B', {Color::WHITE, Figure::BISHOP}},
+        {'R', {Color::WHITE, Figure::ROOK}},
+        {'Q', {Color::WHITE, Figure::QUEEN}},
+        {'K', {Color::WHITE, Figure::KING}},
+        {'p', {Color::BLACK, Figure::PAWN}},
+        {'n', {Color::BLACK, Figure::KNIGHT}},
+        {'b', {Color::BLACK, Figure::BISHOP}},
+        {'r', {Color::BLACK, Figure::ROOK}},
+        {'q', {Color::BLACK, Figure::QUEEN}},
+        {'k', {Color::BLACK, Figure::KING}},
+};
 
 
-/**
- * Парсинг доски из нотации Форсайта - Эдвардса (смотри вики)
- * При некорректных данных программа может завершиться аварийно!
- */
-Chessboard::Chessboard(const std::string& fen) noexcept {
+Chessboard::Chessboard(const std::string& fen) {
     // Пример нотации (стартовая позиция): rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
     std::istringstream notation_stream(fen);
     std::string buffer;
@@ -25,12 +33,11 @@ Chessboard::Chessboard(const std::string& fen) noexcept {
         std::getline(figures_stream, buffer, '/');
         int col = 0;
         for (auto c : buffer) {
-            if (figures.count(c)) {
-                _table[row][col++] = c;
+            auto it = char_to_figure.find(c);
+            if (it != char_to_figure.end()) {
+                _table[row][col++] = it->second;
             } else if ('1' <= c && c <= '8') {
-                for (int k = '0'; k < c; ++k) {
-                    _table[row][col++] = 0;
-                }
+                col += c - '0';
             }
         }
         --row;
@@ -72,256 +79,40 @@ Chessboard::Chessboard(const std::string& fen) noexcept {
 
 }
 
-/**
- * Возвращает символ фигуры, размещенной по координатам coords
- */
-char Chessboard::At(Coords coords) const noexcept {
-    if (coords.GetRow() == 0 || coords.GetCol() == 0) {
-        return 0;
-    }
-    return _table[coords.GetRowIndex()][coords.GetColIndex()];
+
+bool MakeMove(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING) {
+    if ()
+    // проверить что from и to не фигуры одного цвета
+    // проверить ход фигуры
+    // проверить не возникает ли шаха после хода
 }
 
-/**
- * Делает ход, и, в случае, если ход корректный, возвращает true.
- * @param is_black_move true, если ход делается черными. Если белыми - false.
- * @param from позиция фигуры до совершения хода
- * @param to позиция фигуры после хода
- * @param figure фигура, в которую превращается пешка при достижении последнего ряда
- */
-bool Chessboard::MakeMove(bool is_black_move, Coords from, Coords to, char figure) noexcept {
-    bool move_correctness = false;
+bool IsCheck(Color to_player);
+std::string GetFOWFen();
+Result Result();
 
-    char c = std::tolower(At(from));
-    switch (c) {
-        case 'p': move_correctness = TryMovePawn(is_black_move, from, to, figure); break;
-        case 'n': move_correctness = TryMoveKnight(is_black_move, from, to); break;
-        case 'b': move_correctness = TryMoveBishop(is_black_move, from, to); break;
-        case 'r': move_correctness = TryMoveRook(is_black_move, from, to); break;
-        case 'q': move_correctness = TryMoveQueen(is_black_move, from, to); break;
-        case 'k': move_correctness = TryMoveKing(is_black_move, from, to); break;
+size_t Chessboard::TableHash::operator() (const Table& table) const noexcept {
+    ColoredFigureHash cf_hash;
+    const size_t R = 2;
+    size_t hash = 0;
+    for (const auto &row : table) {
+        for (const auto cf : row) {
+            hash = (R * hash + cf_hash(cf));
+        }
     }
 
-    return move_correctness;
+    return hash;
 }
 
-/**
- * Возвращает true, если фигура враждебная для игрока (играющего черными, если for_black - true)
- */
-bool IsEnemy(char figure, bool for_black) {
-    if (for_black) {
-       return 'A' <= figure && figure <= 'Z';
-    }
-    return 'a' <= figure && figure <= 'z';
-}
+bool MakeMovePawn(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
+bool MakeMoveKnight(Coords from, Coords to);
+bool MakeMoveBishop(Coords from, Coords to);
+bool MakeMoveRook(Coords from, Coords to);
+bool MakeMoveQueen(Coords from, Coords to);
+bool MakeMoveKing(Coords from, Coords to);
 
-bool Chessboard::IsCheck(const bool to_black_king) const noexcept {
-    Coords king_pos;
-
-    // find the king
-    for (int row = 0; row < 8; ++row) {
-        for (int col = 0; col < 8; ++col) {
-            if ((to_black_king && _table[row][col] == 'k') ||
-                !to_black_king && _table[row][col] == 'K') {
-                king_pos.SetRow(row + '1'); king_pos.SetCol(col + 'A');
-                break;
-            }
-        }
-    }
-
-    // check pawns
-    {
-        int player_side = to_black_king ? -1 : 1;
-        char candidate_left = At(Coords(king_pos.GetRow() + player_side, king_pos.GetCol() - 1));
-        char candidate_right = At(Coords(king_pos.GetRow() + player_side, king_pos.GetCol() + 1));
-        if (std::tolower(candidate_left) == 'p' && IsEnemy(candidate_left, to_black_king) ||
-            std::tolower(candidate_right) == 'p' && IsEnemy(candidate_right, to_black_king)) {
-            return true;
-        }
-    }
-
-    // check knights
-    {
-        std::vector<char> candidates = {
-                At(Coords(king_pos.GetRow() - 2, king_pos.GetCol() - 1)),
-                At(Coords(king_pos.GetRow() - 2, king_pos.GetCol() + 1)),
-                At(Coords(king_pos.GetRow() - 1, king_pos.GetCol() - 2)),
-                At(Coords(king_pos.GetRow() - 1, king_pos.GetCol() + 2)),
-                At(Coords(king_pos.GetRow() + 1, king_pos.GetCol() - 2)),
-                At(Coords(king_pos.GetRow() + 1, king_pos.GetCol() + 2)),
-                At(Coords(king_pos.GetRow() + 2, king_pos.GetCol() - 1)),
-                At(Coords(king_pos.GetRow() + 2, king_pos.GetCol() + 1)),
-        };
-
-        for (char figure : candidates) {
-            if (std::tolower(figure) == 'n' && IsEnemy(figure, to_black_king)) {
-                return true;
-            }
-        }
-
-    }
-
-    // check diagonals (bishops and queens)
-    {
-        int king_row = king_pos.GetRowIndex();
-        int king_col = king_pos.GetColIndex();
-
-        // check left top diagonal to the king
-        {
-            int i = king_row + 1;
-            int j = king_row - 1;
-            while (i < 8 && j > 0) {
-                char figure = _table[i][j];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'b') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-                ++i;
-                --j;
-            }
-        }
-
-
-        // check right top diagonal to the king
-        {
-            int i = king_row + 1;
-            int j = king_row + 1;
-            while (i < 8 && j > 0) {
-                char figure = _table[i][j];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'b') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-                ++i;
-                ++j;
-            }
-        }
-
-        // check left bottom diagonal to the king
-        {
-            int i = king_row - 1;
-            int j = king_row - 1;
-            while (i < 8 && j > 0) {
-                char figure = _table[i][j];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'b') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-                --i;
-                --j;
-            }
-        }
-
-        // check right bottom diagonal to the king
-        {
-            int i = king_row - 1;
-            int j = king_row + 1;
-            while (i < 8 && j > 0) {
-                char figure = _table[i][j];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'b') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-                --i;
-                ++j;
-            }
-        }
-
-    }
-
-
-    // check lines (rooks and queens)
-    {
-        int king_row = king_pos.GetRowIndex();
-        int king_col = king_pos.GetColIndex();
-
-        {
-            for (int i = king_row; i < 8; ++i) {
-                char figure = _table[i][king_col];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'r') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-            }
-        }
-
-        {
-            for (int i = king_row; i >= 0; --i) {
-                char figure = _table[i][king_col];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'r') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-            }
-        }
-
-        {
-            for (int j = king_col; j < 8; ++j) {
-                char figure = _table[king_row][j];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'r') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-            }
-        }
-
-        {
-            for (int j = king_col; j >= 0; --j) {
-                char figure = _table[king_row][j];
-                if (figure != 0) {
-                    if ((std::tolower(figure) == 'q' || std::tolower(figure) == 'r') &&
-                        IsEnemy(figure, to_black_king)) {
-                        return true;
-                    }
-                    break;
-                }
-            }
-        }
-
-    }
-
-    return false;
-}
-
-bool Chessboard::IsMate(bool to_black_king) const noexcept;
-bool Chessboard::IsDraw(bool is_black_move) const noexcept;
-
-std::size_t Chessboard::PositionRepetitionHash::operator()(char table[8][8]) {
-
-}
-
-bool Chessboard::TryMovePawn(bool is_black_move, Coords from, Coords to, char figure) noexcept {
-
-}
-
-
-bool Chessboard::TryMoveKnight(bool is_black_move, Coords from, Coords to) noexcept;
-bool Chessboard::TryMoveBishop(bool is_black_move, Coords from, Coords to) noexcept;
-bool Chessboard::TryMoveRook(bool is_black_move, Coords from, Coords to) noexcept;
-bool Chessboard::TryMoveQueen(bool is_black_move, Coords from, Coords to) noexcept;
-bool Chessboard::TryMoveKing(bool is_black_move, Coords from, Coords to) noexcept;
-
-bool Chessboard::IsStalemate(bool to_black_king);
-bool Chessboard::IsThreeRepetition();
-bool Chessboard::IsImpossibleToMate();
+bool IsMate();
+bool IsImpossibleToMate();
+bool IsStaleMate();
+bool IsTripleRepetition();
+bool IsFiftyMovesWithoutCapture();

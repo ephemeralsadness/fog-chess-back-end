@@ -1,39 +1,54 @@
 #pragma once
 
 #include "Coords.h"
+#include "Figure.h"
 
 #include <string>
+#include <array>
+#include <vector>
 #include <unordered_map>
+
+enum class Result {
+    IN_PROGRESS,
+    WHITE_WIN,
+    DRAW,
+    BLACK_WIN
+};
 
 class Chessboard {
 public:
     Chessboard() noexcept : Chessboard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") { }
-    Chessboard(const std::string& fen) noexcept;
+    Chessboard(const std::string& fen);
 
-    char At(Coords coords) const noexcept;
+    bool MakeMove(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
 
-    bool MakeMove(bool is_black_move, Coords from, Coords to, char figure = 0) noexcept;
-
-    bool IsCheck(bool to_black_king) const noexcept;
-    bool IsMate(bool to_black_king) const noexcept;
-    bool IsDraw(bool is_black_move) const noexcept;
-
+    std::string GetFOWFen();
+    Result Result();
 private:
+    typedef std::array<std::array<ColoredFigure, 8>, 8> Table;
 
-    struct PositionRepetitionHash {
-        std::size_t operator()(char table[8][8]);
-    };
+    bool IsCheck(Color to_player);
+    std::vector<Coords> AllPossibleMoves(Coords figure_pos);
+    std::array<std::array<int, 8>, 8> ProtectedFields(Color by_player);
 
-    bool TryMovePawn(bool is_black_move, Coords from, Coords to, char figure = 0) noexcept;
-    bool TryMoveKnight(bool is_black_move, Coords from, Coords to) noexcept;
-    bool TryMoveBishop(bool is_black_move, Coords from, Coords to) noexcept;
-    bool TryMoveRook(bool is_black_move, Coords from, Coords to) noexcept;
-    bool TryMoveQueen(bool is_black_move, Coords from, Coords to) noexcept;
-    bool TryMoveKing(bool is_black_move, Coords from, Coords to) noexcept;
+    // Ходы разных фигур
+    bool MakeMovePawn(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
+    bool MakeMoveKnight(Coords from, Coords to);
+    bool MakeMoveBishop(Coords from, Coords to);
+    bool MakeMoveRook(Coords from, Coords to);
+    bool MakeMoveQueen(Coords from, Coords to);
+    bool MakeMoveKing(Coords from, Coords to);
 
-    bool IsStalemate(bool to_black_king);
-    bool IsTripleRepetition();
+    // функции для проверки на конец партии
+    bool IsMate();
     bool IsImpossibleToMate();
+    bool IsStaleMate();
+    bool IsTripleRepetition();
+    bool IsFiftyMovesWithoutCapture();
+
+    struct TableHash {
+        size_t operator() (const Table& table) const noexcept;
+    };
 
     bool _is_black_move;
     bool _white_can_kingside_castling;
@@ -43,6 +58,6 @@ private:
     Coords _en_passant_square;
     int _moves_without_capture_counter;
     int _moves_counter;
-    std::unordered_map<char[8][8], int, PositionRepetitionHash> _position_repetitions;
-    char _table[8][8];
+    std::unordered_map<Table, int, TableHash> _position_repetitions;
+    Table _table;
 };
