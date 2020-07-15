@@ -6,6 +6,7 @@
 #include <string>
 #include <array>
 #include <vector>
+#include <set>
 #include <unordered_map>
 
 enum class Result {
@@ -28,16 +29,16 @@ private:
     typedef std::array<std::array<ColoredFigure, 8>, 8> Table;
 
     bool IsCheck(Color to_player);
-    std::vector<Coords> AllPossibleMoves(Coords figure_pos);
+    std::vector<Coords, std::set<Coords>> AllPossibleMoves();
     std::array<std::array<int, 8>, 8> ProtectedFields(Color by_player);
 
-    // Ходы разных фигур
-    bool MakeMovePawn(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
-    bool MakeMoveKnight(Coords from, Coords to);
-    bool MakeMoveBishop(Coords from, Coords to);
-    bool MakeMoveRook(Coords from, Coords to);
-    bool MakeMoveQueen(Coords from, Coords to);
-    bool MakeMoveKing(Coords from, Coords to);
+    std::vector<Coords> GetMoves(Coords figure_pos, bool only_possible);
+    std::vector<Coords> GetMovesPawn(Coords figure_pos, bool only_possible);
+    std::vector<Coords> GetMovesKnight(Coords figure_pos, bool only_possible);
+    std::vector<Coords> GetMovesBishop(Coords figure_pos, bool only_possible);
+    std::vector<Coords> GetMovesRook(Coords figure_pos, bool only_possible);
+    std::vector<Coords> GetMovesQueen(Coords figure_pos, bool only_possible);
+    std::vector<Coords> GetMovesKing(Coords figure_pos, bool only_possible);
 
     // функции для проверки на конец партии
     bool IsMate();
@@ -50,11 +51,12 @@ private:
         size_t operator() (const Table& table) const noexcept;
     };
 
-    bool _is_black_move;
+    Color _current_turn;
     bool _white_can_kingside_castling;
     bool _white_can_queenside_castling;
     bool _black_can_kingside_castling;
     bool _black_can_queenside_castling;
+    bool _was_triple_repetition;
     Coords _en_passant_square;
     int _moves_without_capture_counter;
     int _moves_counter;
