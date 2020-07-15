@@ -31,6 +31,7 @@ private:
     bool IsCheck(Color to_player);
     std::vector<Coords, std::set<Coords>> AllPossibleMoves();
     std::array<std::array<int, 8>, 8> ProtectedFields(Color by_player);
+    bool NoCheckAfterMove(Coords from, Coords to);
 
     std::vector<Coords> GetMoves(Coords figure_pos, bool only_possible);
     std::vector<Coords> GetMovesPawn(Coords figure_pos, bool only_possible);

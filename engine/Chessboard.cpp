@@ -100,10 +100,23 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
 
     figure_to_eat = figure_to_move;
     figure_to_move.figure = Figure::NOTHING;
-    // проверить не возникает ли шаха после хода
 
+    // проверить не возникает ли шаха после хода
     if (IsCheck(_current_turn)) {
         return false;
+    }
+
+    // Обработка взятия на проходе
+    if (figure_to_eat.figure == Figure::PAWN && abs(from.GetRowIndex() - to.GetRowIndex()) == 2) {
+        _en_passant_square.SetRow((static_cast<int>(from.GetRow()) + to.GetRow()) / 2);
+        _en_passant_square.SetCol(from.GetCol());
+    } else {
+        _en_passant_square = {0, 0};
+    }
+
+    // Обработка прохода пешки до последней горизонтали
+    if (to.GetRow() == '1' || to.GetRow() == '8') {
+        figure_to_eat.figure = figure_to_place;
     }
 
     // увеличить счетчики ходов и передать ход другому игроку
@@ -133,15 +146,12 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
 
 bool Chessboard::IsCheck(Color to_player) {
     Color enemy_color = (to_player == Color::WHITE) ? Color::BLACK : Color::WHITE;
-    auto protected_fiels = ProtectedFields(enemy_color);
+    auto protected_fields = ProtectedFields(enemy_color);
 
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 8; ++j) {
             if (_table[i][j].figure == Figure::KING && _table[i][j].color == to_player) {
-                if (protected_fiels[i][j] != 0) {
-                    return true;
-                }
-                return false;
+                return protected_fields[i][j] != 0;
             }
         }
     }
@@ -154,6 +164,14 @@ std::vector<Coords, std::set<Coords>> Chessboard::AllPossibleMoves();
 
 
 std::array<std::array<int, 8>, 8> Chessboard::ProtectedFields(Color by_player);
+
+
+bool Chessboard::NoCheckAfterMove(Coords from, Coords to) {
+    ColoredFigure figure_on_from = _table[from.GetRowIndex()][from.GetColIndex()];
+    ColoredFigure figure_on_to = _table[from.GetRowIndex()][from.GetColIndex()];
+
+
+}
 
 
 std::string Chessboard::GetFOWFen();
@@ -176,7 +194,40 @@ size_t Chessboard::TableHash::operator() (const Table& table) const noexcept {
 }
 
 
-std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possible);
+std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possible) {
+    int row = figure_pos.GetRowIndex();
+    int col = figure_pos.GetColIndex();
+    Color figure_color = _table[row][col].color;
+    std::vector<Coords> moves;
+    if (figure_color == Color::WHITE) {
+        if (_table[row][col].figure == Figure::NOTHING) {
+
+        }
+
+        if (col > 0 && _table[row + 1][col - 1].figure != Figure::NOTHING &&
+            _table[row + 1][col - 1].color == Color::BLACK) {
+
+        }
+
+        if (col < 7 && _table[row + 1][col + 1].figure != Figure::NOTHING &&
+            _table[row + 1][col + 1].color == Color::BLACK) {
+
+        }
+
+        if (row == 2 && _table[row + 2][col].figure == Figure::NOTHING) {
+
+        }
+
+        if (_en_passant_square.GetRow() == row + 1 && abs(_en_passant_square.GetCol() - col) == 1) {
+            // push _en_passant_square too
+        }
+
+    } else {
+
+    }
+
+
+}
 
 
 std::vector<Coords> Chessboard::GetMovesKnight(Coords figure_pos, bool only_possible);
