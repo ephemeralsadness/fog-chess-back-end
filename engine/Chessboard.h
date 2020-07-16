@@ -22,7 +22,6 @@ public:
     explicit Chessboard(const std::string& fen);
 
     bool MakeMove(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
-
     std::string GetFOWFen();
     enum Result Result();
 private:
@@ -39,6 +38,7 @@ private:
     std::vector<Coords> GetMovesBishop(Coords figure_pos, bool only_possible);
     std::vector<Coords> GetMovesRook(Coords figure_pos, bool only_possible);
     std::vector<Coords> GetMovesQueen(Coords figure_pos, bool only_possible);
+    std::vector<Coords> GetCastlingMoves(Coords figure_pos);
     std::vector<Coords> GetMovesKing(Coords figure_pos, bool only_possible);
 
     // функции для проверки на конец партии
@@ -63,8 +63,6 @@ private:
     int _moves_counter;
     std::unordered_map<Table, int, TableHash> _position_repetitions;
     Table _table;
-
-
 
 public:
     // Debug

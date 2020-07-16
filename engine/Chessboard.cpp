@@ -109,11 +109,33 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
         } else if (figure_to_move.color == Color::BLACK) {
             _table[to.GetRow() + 1][to.GetCol()].figure = Figure::NOTHING;
         }
+    } else if (figure_to_move.figure == Figure::KING && abs(from.GetCol() - to.GetCol()) == 2) {
+        if (to.GetCol() > from.GetCol()) {
+            std::swap(_table[from.GetRow()][7], _table[from.GetRow()][5]);
+        } else {
+            std::swap(_table[from.GetRow()][0], _table[from.GetCol()][3]);
+        }
     }
     figure_to_eat = figure_to_move;
     figure_to_move.figure = Figure::NOTHING;
 
-    // TODO проверить рокировку
+    if (figure_to_eat.figure == Figure::KING) {
+        if (_current_turn == Color::WHITE) {
+            _white_can_kingside_castling = false;
+            _white_can_queenside_castling = false;
+        } else {
+            _black_can_kingside_castling = false;
+            _black_can_queenside_castling = false;
+        }
+    } else if (to.GetRow() == 0 && to.GetCol() == 0) {
+        _white_can_queenside_castling = false;
+    } else if (to.GetRow() == 0 && to.GetCol() == 7) {
+        _white_can_kingside_castling = false;
+    } else if (to.GetRow() == 7 && to.GetCol() == 0) {
+        _black_can_queenside_castling = false;
+    } else if (to.GetRow() == 7 && to.GetCol() == 7) {
+        _black_can_kingside_castling = false;
+    }
 
     // Обработка взятия на проходе
     if (figure_to_eat.figure == Figure::PAWN && abs(from.GetRow() - to.GetRow()) == 2) {
@@ -123,7 +145,7 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
     }
 
     // Обработка прохода пешки до последней горизонтали
-    if (to.GetRow() == 0 || to.GetRow() == 7) {
+    if (figure_to_eat.figure == Figure::PAWN && (to.GetRow() == 0 || to.GetRow() == 7)) {
         figure_to_eat.figure = figure_to_place;
     }
 
@@ -532,6 +554,59 @@ std::vector<Coords> Chessboard::GetMovesQueen(Coords figure_pos, bool only_possi
 }
 
 
+std::vector<Coords> Chessboard::GetCastlingMoves(Coords figure_pos) {
+    std::vector<Coords> moves;
+
+    Color figure_color = _table[figure_pos.GetRow()][figure_pos.GetCol()].color;
+    Color enemy_color = figure_color == Color::WHITE ? Color::BLACK : Color::WHITE;
+
+    auto attacked_fields = ProtectedFields(enemy_color);
+
+    bool first_alpha = true;
+    bool second_alpha = true;
+
+    if ((figure_color == Color::WHITE && _white_can_kingside_castling) ||
+        (figure_color == Color::BLACK && _black_can_kingside_castling)) {
+        if (IsCheck(figure_color)) return {};
+
+        int row = figure_pos.GetRow();
+        int col = figure_pos.GetCol();
+
+        for (int i = col + 1; i < 7; ++i) {
+            if (_table[row][i].figure != Figure::NOTHING) {
+                first_alpha = false;
+            }
+        }
+
+        if (first_alpha && attacked_fields[row][col + 1].empty() && attacked_fields[row][col + 2].empty()) {
+            moves.emplace_back(row, col + 2);
+        }
+
+    }
+
+    if ((figure_color == Color::WHITE && _white_can_queenside_castling) ||
+        (figure_color == Color::BLACK && _black_can_queenside_castling)) {
+        if (IsCheck(figure_color)) return {};
+
+        int row = figure_pos.GetRow();
+        int col = figure_pos.GetCol();
+
+        for (int i = col - 1; i > 0; --i) {
+            if (_table[row][i].figure != Figure::NOTHING) {
+                second_alpha = false;
+            }
+        }
+
+        if (second_alpha && attacked_fields[row][col + 1].empty() && attacked_fields[row][col + 2].empty()) {
+            moves.emplace_back(row, col - 2);
+        }
+
+    }
+
+    return moves;
+}
+
+
 std::vector<Coords> Chessboard::GetMovesKing(Coords figure_pos, bool only_possible) {
     std::vector<Coords> moves;
 
@@ -550,12 +625,9 @@ std::vector<Coords> Chessboard::GetMovesKing(Coords figure_pos, bool only_possib
         }
     }
 
-    // TODO поддержка рокировки
-
-    if (figure_color == Color::WHITE) {
-
-    } else {
-
+    if (only_possible) {
+        auto castling_moves = GetCastlingMoves(figure_pos);
+        moves.insert(moves.end(), castling_moves.begin(), castling_moves.end());
     }
 
     return moves;
