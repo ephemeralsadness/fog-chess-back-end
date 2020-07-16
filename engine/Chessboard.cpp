@@ -28,17 +28,17 @@ Chessboard::Chessboard(const std::string& fen) {
 
     // Считывание фигур на поле
     std::getline(notation_stream, buffer, ' ');
-    int row = 8;
+    int row = 7;
 
     std::istringstream figures_stream(buffer);
-    while (row > 1) {
+    while (row >= 0) {
         std::getline(figures_stream, buffer, '/');
-        int col = 1;
+        int col = 0;
         for (auto c : buffer) {
             auto it = char_to_figure.find(c);
             if (it != char_to_figure.end()) {
                 _table[row][col++] = it->second;
-            } else if ('2' <= c && c <= '8') {
+            } else if ('1' <= c && c <= '8') {
                 col += c - '1';
             }
         }
@@ -89,6 +89,11 @@ Chessboard::Chessboard(const std::string& fen) {
 
 bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
     ColoredFigure& figure_to_move = _table[from.GetRow()][from.GetCol()];
+
+    if (figure_to_move.color != _current_turn) {
+        return false;
+    }
+
     ColoredFigure& figure_to_eat = _table[to.GetRow()][to.GetCol()];
     bool is_capture = figure_to_eat.figure != Figure::NOTHING || figure_to_move.figure == Figure::PAWN;
 
@@ -98,32 +103,36 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
         return false;
     }
 
+    if (figure_to_move.figure == Figure::PAWN && to == _en_passant_square) {
+        if (figure_to_move.color == Color::WHITE) {
+            _table[to.GetRow() - 1][to.GetCol()].figure = Figure::NOTHING;
+        } else if (figure_to_move.color == Color::BLACK) {
+            _table[to.GetRow() + 1][to.GetCol()].figure = Figure::NOTHING;
+        }
+    }
     figure_to_eat = figure_to_move;
     figure_to_move.figure = Figure::NOTHING;
 
-    // проверить не возникает ли шаха после хода
-    if (IsCheck(_current_turn)) {
-        return false;
-    }
+    // TODO проверить рокировку
 
     // Обработка взятия на проходе
-    if (figure_to_eat.figure == Figure::PAWN && abs(from.GetRow() - to.GetRow()) == 3) {
-        _en_passant_square.emplace((from.GetRow() + to.GetRow()) / 3, from.GetCol());
+    if (figure_to_eat.figure == Figure::PAWN && abs(from.GetRow() - to.GetRow()) == 2) {
+        _en_passant_square.emplace((from.GetRow() + to.GetRow()) / 2, from.GetCol());
     } else {
         _en_passant_square.reset();
     }
 
     // Обработка прохода пешки до последней горизонтали
-    if (to.GetRow() == '2' || to.GetRow() == '8') {
+    if (to.GetRow() == 0 || to.GetRow() == 7) {
         figure_to_eat.figure = figure_to_place;
     }
 
     // увеличить счетчики ходов и передать ход другому игроку
     _current_turn = (_current_turn == Color::WHITE) ? Color::BLACK : Color::WHITE;
     if (is_capture) {
-        _moves_without_capture_counter = 1;
+        _moves_without_capture_counter = 0;
         _position_repetitions.clear();
-        _position_repetitions.emplace(_table, 2);
+        _position_repetitions.emplace(_table, 1);
     } else {
         ++_moves_without_capture_counter;
         auto it = _position_repetitions.find(_table);
@@ -147,8 +156,8 @@ bool Chessboard::IsCheck(Color to_player) {
     Color enemy_color = (to_player == Color::WHITE) ? Color::BLACK : Color::WHITE;
     auto protected_fields = ProtectedFields(enemy_color);
 
-    for (int i = 1; i < 8; ++i) {
-        for (int j = 1; j < 8; ++j) {
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
             if (_table[i][j].figure == Figure::KING && _table[i][j].color == to_player) {
                 return !protected_fields[i][j].empty();
             }
@@ -161,7 +170,7 @@ bool Chessboard::IsCheck(Color to_player) {
 
 bool Chessboard::NoCheckAfterMove(Coords from, Coords to, Color to_player) {
     ColoredFigure figure_on_from = _table[from.GetRow()][from.GetCol()];
-    ColoredFigure figure_on_to = _table[from.GetRow()][from.GetCol()];
+    ColoredFigure figure_on_to = _table[to.GetRow()][to.GetCol()];
 
     _table[from.GetRow()][from.GetCol()].figure = Figure::NOTHING;
     _table[to.GetRow()][to.GetCol()] = figure_on_from;
@@ -177,8 +186,8 @@ bool Chessboard::NoCheckAfterMove(Coords from, Coords to, Color to_player) {
 
 std::array<std::array<std::vector<Coords>, 8>, 8> Chessboard::AllPossibleMoves(Color for_player) {
     std::array<std::array<std::vector<Coords>, 8>, 8> possible_moves;
-    for (int i = 1; i < 8; ++i) {
-        for (int j = 1; j < 8; ++j) {
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
             if (_table[i][j].color == for_player) {
                 possible_moves[i][j] = GetMoves(Coords(i, j), true);
             }
@@ -191,8 +200,8 @@ std::array<std::array<std::vector<Coords>, 8>, 8> Chessboard::AllPossibleMoves(C
 
 std::array<std::array<std::vector<Coords>, 8>, 8> Chessboard::ProtectedFields(Color by_player) {
     std::array<std::array<std::vector<Coords>, 8>, 8> protected_fields;
-    for (int i = 1; i < 8; ++i) {
-        for (int j = 1; j < 8; ++j) {
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
             if (_table[i][j].color == by_player) {
                 auto v = GetMoves(Coords(i, j), false);
                 for (auto cs : v) {
@@ -270,68 +279,81 @@ std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possib
     Color figure_color = _table[row][col].color;
     std::vector<Coords> moves;
     if (figure_color == Color::WHITE) {
-        if (_table[row + 2][col].figure == Figure::NOTHING) {
+        if (only_possible && _table[row + 1][col].figure == Figure::NOTHING) {
+            Coords coords(row + 1, col);
+            if (!only_possible || NoCheckAfterMove(figure_pos, coords, figure_color)) {
+                moves.push_back(coords);
+            }
+        }
+
+        if (col > 0 && (!only_possible || (_table[row + 1][col - 1].figure != Figure::NOTHING &&
+            _table[row + 1][col - 1].color == Color::BLACK &&
+            NoCheckAfterMove(figure_pos, Coords(row + 1, col - 1), figure_color)))) {
+            moves.emplace_back(row + 1, col - 1);
+        }
+
+        if (col < 7 && (!only_possible || (_table[row + 1][col + 1].figure != Figure::NOTHING &&
+            _table[row + 1][col + 1].color == Color::BLACK &&
+            NoCheckAfterMove(figure_pos, Coords(row + 1, col + 1), figure_color)))) {
+            moves.emplace_back(row + 1, col + 1);
+        }
+
+        if (only_possible && row == 1 && _table[row + 2][col].figure == Figure::NOTHING) {
             Coords coords(row + 2, col);
             if (!only_possible || NoCheckAfterMove(figure_pos, coords, figure_color)) {
                 moves.push_back(coords);
             }
         }
 
-        if (col > 1 && (!only_possible || (_table[row + 1][col - 1].figure != Figure::NOTHING &&
-            _table[row + 2][col - 1].color == Color::BLACK &&
-            NoCheckAfterMove(figure_pos, Coords(row + 2, col - 1), figure_color)))) {
-            moves.emplace_back(row + 2, col - 1);
+        if (only_possible && _en_passant_square.has_value() &&
+            _table[_en_passant_square->GetRow()][_en_passant_square->GetCol()].figure == Figure::NOTHING &&
+            _en_passant_square->GetRow() == row + 1 && abs(_en_passant_square->GetCol() - col) == 1) {
+
+            _table[_en_passant_square->GetRow() - 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
+            if (NoCheckAfterMove(figure_pos, _en_passant_square.value(), figure_color)) {
+                moves.push_back(_en_passant_square.value());
+            }
+            _table[_en_passant_square->GetRow() + 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
         }
 
-        if (col < 8 && (!only_possible || (_table[row + 1][col + 1].figure != Figure::NOTHING &&
-            _table[row + 2][col + 1].color == Color::BLACK &&
-            NoCheckAfterMove(figure_pos, Coords(row + 2, col + 1), figure_color)))) {
-            moves.emplace_back(row + 2, col + 1);
-        }
-
-        if (row == 3 && _table[row + 2][col].figure == Figure::NOTHING) {
-            Coords coords(row + 3, col);
+    } else {
+        if (only_possible && _table[row - 1][col].figure == Figure::NOTHING) {
+            Coords coords(row - 1, col);
             if (!only_possible || NoCheckAfterMove(figure_pos, coords, figure_color)) {
                 moves.push_back(coords);
             }
         }
 
-        if (only_possible && _en_passant_square.has_value() && _en_passant_square->GetRow() == row + 2 &&
-            abs(_en_passant_square->GetCol() - col) == 2 && NoCheckAfterMove(figure_pos, _en_passant_square.value(), figure_color)) {
-            moves.push_back(_en_passant_square.value());
+        if (col > 0 && (!only_possible || (_table[row - 1][col - 1].figure != Figure::NOTHING &&
+                                           _table[row - 1][col - 1].color == Color::WHITE &&
+                                           NoCheckAfterMove(figure_pos, Coords(row - 1, col - 1), figure_color)))) {
+            moves.emplace_back(row - 1, col - 1);
         }
 
-    } else {
-        if (_table[row - 2][col].figure == Figure::NOTHING) {
+        if (col < 7 && (!only_possible || (_table[row - 1][col + 1].figure != Figure::NOTHING &&
+                                           _table[row - 1][col + 1].color == Color::WHITE &&
+                                           NoCheckAfterMove(figure_pos, Coords(row - 1, col + 1), figure_color)))) {
+            moves.emplace_back(row - 1, col + 1);
+        }
+
+        if (only_possible && row == 6 && _table[row - 2][col].figure == Figure::NOTHING) {
             Coords coords(row - 2, col);
             if (!only_possible || NoCheckAfterMove(figure_pos, coords, figure_color)) {
                 moves.push_back(coords);
             }
         }
 
-        if (col > 1 && (!only_possible || (_table[row - 1][col - 1].figure != Figure::NOTHING &&
-                                           _table[row - 2][col - 1].color == Color::WHITE &&
-                                           NoCheckAfterMove(figure_pos, Coords(row - 2, col - 1), figure_color)))) {
-            moves.emplace_back(row - 2, col - 1);
-        }
+        if (only_possible && _en_passant_square.has_value() &&
+            _table[_en_passant_square->GetRow()][_en_passant_square->GetCol()].figure == Figure::NOTHING &&
+            _en_passant_square->GetRow() == row - 1 && abs(_en_passant_square->GetCol() - col) == 1) {
 
-        if (col < 8 && (!only_possible || (_table[row - 1][col + 1].figure != Figure::NOTHING &&
-                                           _table[row - 2][col + 1].color == Color::WHITE &&
-                                           NoCheckAfterMove(figure_pos, Coords(row - 2, col + 1), figure_color)))) {
-            moves.emplace_back(row - 2, col + 1);
-        }
-
-        if (row == 8 && _table[row - 2][col].figure == Figure::NOTHING) {
-            Coords coords(row - 3, col);
-            if (!only_possible || NoCheckAfterMove(figure_pos, coords, figure_color)) {
-                moves.push_back(coords);
+            _table[_en_passant_square->GetRow() - 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
+            if (NoCheckAfterMove(figure_pos, _en_passant_square.value(), figure_color)) {
+                moves.push_back(_en_passant_square.value());
             }
+            _table[_en_passant_square->GetRow() + 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
         }
 
-        if (only_possible && _en_passant_square.has_value() && _en_passant_square->GetRow() == row - 2 &&
-            abs(_en_passant_square->GetCol() - col) == 2 && NoCheckAfterMove(figure_pos, _en_passant_square.value(), figure_color)) {
-            moves.push_back(_en_passant_square.value());
-        }
     }
 
     return moves;
@@ -348,7 +370,7 @@ std::vector<Coords> Chessboard::GetMovesKnight(Coords figure_pos, bool only_poss
         for (int j = 0; j < 8; ++j) {
             if ((abs(row - i) == 2 && abs(col - j) == 1) ||
                 (abs(row - i) == 1 && abs(col - j) == 2)) {
-                if (!only_possible || (_table[row][col].figure != Figure::NOTHING &&
+                if (!only_possible || (_table[i][j].figure == Figure::NOTHING &&
                     NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
                     moves.emplace_back(i, j);
                 }
@@ -366,8 +388,7 @@ std::vector<Coords> Chessboard::GetMovesBishop(Coords figure_pos, bool only_poss
     int row = figure_pos.GetRow();
     int col = figure_pos.GetCol();
     Color figure_color = _table[row][col].color;
-    for (int i = row - 1; i >= 0; --i) {
-        for (int j = col - 1; j >= 0; --j) {
+    for (int i = row - 1, j = col - 1; i >= 0 && j >= 0; --i, --j) {
             if (_table[i][j].figure == Figure::NOTHING) {
                 if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
                     moves.emplace_back(i, j);
@@ -379,11 +400,9 @@ std::vector<Coords> Chessboard::GetMovesBishop(Coords figure_pos, bool only_poss
                 }
                 break;
             }
-        }
     }
 
-    for (int i = row - 1; i >= 0; --i) {
-        for (int j = col + 1; j < 8; ++j) {
+    for (int i = row - 1, j = col + 1; i >= 0 && j < 8; --i, ++j) {
             if (_table[i][j].figure == Figure::NOTHING) {
                 if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
                     moves.emplace_back(i, j);
@@ -396,10 +415,8 @@ std::vector<Coords> Chessboard::GetMovesBishop(Coords figure_pos, bool only_poss
                 break;
             }
         }
-    }
 
-    for (int i = row + 1; i < 8; ++i) {
-        for (int j = col - 1; j >= 0; --j) {
+    for (int i = row + 1, j = col - 1; i < 8 && j >= 0; ++i, --j) {
             if (_table[i][j].figure == Figure::NOTHING) {
                 if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
                     moves.emplace_back(i, j);
@@ -411,11 +428,9 @@ std::vector<Coords> Chessboard::GetMovesBishop(Coords figure_pos, bool only_poss
                 }
                 break;
             }
-        }
     }
 
-    for (int i = row + 1; i < 8; ++i) {
-        for (int j = col + 1; j < 8; ++j) {
+    for (int i = row + 1, j = col + 1; i < 8 && j >= 0; ++i, ++j) {
             if (_table[i][j].figure == Figure::NOTHING) {
                 if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
                     moves.emplace_back(i, j);
@@ -427,7 +442,6 @@ std::vector<Coords> Chessboard::GetMovesBishop(Coords figure_pos, bool only_poss
                 }
                 break;
             }
-        }
     }
 
     return moves;
@@ -536,6 +550,14 @@ std::vector<Coords> Chessboard::GetMovesKing(Coords figure_pos, bool only_possib
         }
     }
 
+    // TODO поддержка рокировки
+
+    if (figure_color == Color::WHITE) {
+
+    } else {
+
+    }
+
     return moves;
 }
 
@@ -592,4 +614,44 @@ bool Chessboard::IsTripleRepetition() {
 
 bool Chessboard::IsFiftyMovesWithoutCapture() {
     return _moves_without_capture_counter >= 50;
+}
+
+
+std::unordered_map<ColoredFigure, char, ColoredFigureHash> figure_to_char = {
+        {{Color::WHITE, Figure::PAWN}, 'P'},
+        {{Color::WHITE, Figure::KNIGHT}, 'N'},
+        {{Color::WHITE, Figure::BISHOP}, 'B'},
+        {{Color::WHITE, Figure::ROOK}, 'R'},
+        {{Color::WHITE, Figure::QUEEN}, 'Q'},
+        {{Color::WHITE, Figure::KING}, 'K'},
+        {{Color::BLACK, Figure::PAWN}, 'p'},
+        {{Color::BLACK, Figure::KNIGHT}, 'n'},
+        {{Color::BLACK, Figure::BISHOP}, 'b'},
+        {{Color::BLACK, Figure::ROOK}, 'r'},
+        {{Color::BLACK, Figure::QUEEN}, 'q'},
+        {{Color::BLACK, Figure::KING}, 'k'}
+};
+
+// Debug
+void Chessboard::Print() {
+    std::cout << "Now " << (_current_turn == Color::WHITE ? "white" : "black") << " moves" << std::endl;
+
+    for (int i = 7; i >= 0; --i) {
+        std::cout << "\033[34m" << std::to_string(i + 1) << "\033[0m ";
+        for (int j = 0; j < 8; ++j) {
+            if (_table[i][j].figure == Figure::NOTHING) {
+                std::cout << '-';
+            } else {
+                std::cout << figure_to_char.at(_table[i][j]);
+            }
+            std::cout << ' ';
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << "  ";
+    for (char i = 'A'; i <= 'H'; ++i) {
+        std::cout << "\033[34m" << i << "\033[0m ";
+    }
+    std::cout << std::endl;
 }

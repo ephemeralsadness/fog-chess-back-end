@@ -63,4 +63,10 @@ private:
     int _moves_counter;
     std::unordered_map<Table, int, TableHash> _position_repetitions;
     Table _table;
+
+
+
+public:
+    // Debug
+    void Print();
 };
