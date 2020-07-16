@@ -16,7 +16,7 @@ public:
      * @param row символ от '1' до '8' - ряд шахматной доски
      * @param col символ от 'A' до 'H' - колонка шахматной доски
      */
-    Coords(char row, char col) noexcept;
+    Coords(int8_t row, int8_t col) noexcept;
 
     /**
      * Стандартные геттеры (см. к-тор Coords(row, col))
@@ -25,24 +25,18 @@ public:
     char GetCol() const noexcept;
 
     /**
-     * Возвращают порядковый номер (от 0 до 7) ряда или колонки.
-     */
-    int GetRowIndex() const noexcept;
-    int GetColIndex() const noexcept;
-
-    /**
      * Стандартные сеттеры (см. к-тор Coords(row, col))
      */
-    void SetCol(char col) noexcept;
-    void SetRow(char row) noexcept;
+    void SetCol(int8_t col) noexcept;
+    void SetRow(int8_t row) noexcept;
 
     /**
-     * Строка вида "row,col" (без символа запятой)
+     * Строка вида "C2", "A5" и т.д.
      */
     std::string ToString() const noexcept;
 private:
-    char _row;
-    char _col;
+    int8_t _row;
+    int8_t _col;
 };
 
 /**
