@@ -58,7 +58,7 @@ private:
     bool _black_can_kingside_castling;
     bool _black_can_queenside_castling;
     bool _was_triple_repetition;
-    Coords _en_passant_square;
+    std::optional<Coords> _en_passant_square;
     int _moves_without_capture_counter;
     int _moves_counter;
     std::unordered_map<Table, int, TableHash> _position_repetitions;
