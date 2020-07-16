@@ -31,3 +31,6 @@ std::ostream& operator << (std::ostream& out, const Coords& coords) {
     return out << coords.ToString();
 }
 
+bool operator == (const Coords& lhs, const Coords& rhs) {
+    return lhs.GetRow() == rhs.GetRow() && lhs.GetCol() == rhs.GetCol();
+}

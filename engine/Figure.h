@@ -30,7 +30,7 @@ struct ColoredFigure {
 
 struct ColoredFigureHash {
     // При этом хеш-значения { WHITE, NOTHING } и { BLACK, NOTHING } равны.
-    size_t operator() (ColoredFigure f) const noexcept {
-        return static_cast<int>(f.figure) * (static_cast<int>(f.color) + 1);
-    }
+    size_t operator() (const ColoredFigure& f) const noexcept;
 };
+
+bool operator == (const ColoredFigure& lhs, const ColoredFigure& rhs);

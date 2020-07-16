@@ -24,7 +24,7 @@ public:
     bool MakeMove(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
 
     std::string GetFOWFen();
-    Result Result();
+    enum Result Result();
 private:
     typedef std::array<std::array<ColoredFigure, 8>, 8> Table;
 

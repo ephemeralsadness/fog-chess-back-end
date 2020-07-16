@@ -45,3 +45,5 @@ private:
  * @param coords объект координат
  */
 std::ostream& operator << (std::ostream& out, const Coords& coords);
+
+bool operator == (const Coords& lhs, const Coords& rhs);

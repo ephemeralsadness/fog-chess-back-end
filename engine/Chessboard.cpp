@@ -242,6 +242,27 @@ size_t Chessboard::TableHash::operator() (const Table& table) const noexcept {
     return hash;
 }
 
+std::vector<Coords> Chessboard::GetMoves(Coords figure_pos, bool only_possible) {
+    switch (_table[figure_pos.GetRow()][figure_pos.GetCol()].figure) {
+        case Figure::PAWN:
+            return GetMovesPawn(figure_pos, only_possible);
+        case Figure::KNIGHT:
+            return GetMovesKnight(figure_pos, only_possible);
+        case Figure::BISHOP:
+            return GetMovesBishop(figure_pos, only_possible);
+        case Figure::ROOK:
+            return GetMovesRook(figure_pos, only_possible);
+        case Figure::QUEEN:
+            return GetMovesQueen(figure_pos, only_possible);
+        case Figure::KING:
+            return GetMovesKing(figure_pos, only_possible);
+        default:
+            return {};
+    }
+}
+
+
+
 
 std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possible) {
     int row = figure_pos.GetRow();
