@@ -151,7 +151,7 @@ bool Chessboard::IsCheck(Color to_player) {
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 8; ++j) {
             if (_table[i][j].figure == Figure::KING && _table[i][j].color == to_player) {
-                return protected_fields[i][j] != 0;
+                return !protected_fields[i][j].empty();
             }
         }
     }
@@ -160,18 +160,35 @@ bool Chessboard::IsCheck(Color to_player) {
 }
 
 
-std::vector<Coords, std::set<Coords>> Chessboard::AllPossibleMoves();
-
-
-std::array<std::array<int, 8>, 8> Chessboard::ProtectedFields(Color by_player);
-
-
-bool Chessboard::NoCheckAfterMove(Coords from, Coords to) {
+bool Chessboard::NoCheckAfterMove(Coords from, Coords to, Color to_player) {
     ColoredFigure figure_on_from = _table[from.GetRowIndex()][from.GetColIndex()];
     ColoredFigure figure_on_to = _table[from.GetRowIndex()][from.GetColIndex()];
 
+    _table[from.GetRowIndex()][from.GetColIndex()].figure = Figure::NOTHING;
+    _table[to.GetRowIndex()][to.GetColIndex()] = figure_on_from;
 
+    bool no_check = !IsCheck(to_player);
+
+    _table[from.GetRowIndex()][from.GetColIndex()] = figure_on_from;
+    _table[to.GetRowIndex()][to.GetColIndex()] = figure_on_to;
+
+    return no_check;
 }
+
+
+std::array<std::array<std::vector<Coords>, 8>, 8> Chessboard::AllPossibleMoves(Color for_player) {
+    std::array<std::array<std::vector<Coords>, 8>, 8> possible_moves;
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (_table[i][j].color == for_player) {
+                possible_moves[i][j] = GetMoves(Coords('1' + i, 'A' + j), true);
+            }
+        }
+    }
+}
+
+
+std::array<std::array<std::vector<Coords>, 8>, 8> Chessboard::ProtectedFields(Color by_player);
 
 
 std::string Chessboard::GetFOWFen();
@@ -200,26 +217,34 @@ std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possib
     Color figure_color = _table[row][col].color;
     std::vector<Coords> moves;
     if (figure_color == Color::WHITE) {
-        if (_table[row][col].figure == Figure::NOTHING) {
-
+        if (_table[row + 1][col].figure == Figure::NOTHING) {
+            Coords coords(figure_pos.GetRow() + 1, figure_pos.GetCol());
+            if (!only_possible || NoCheckAfterMove(figure_pos, coords, figure_color)) {
+                moves.push_back(coords);
+            }
         }
 
-        if (col > 0 && _table[row + 1][col - 1].figure != Figure::NOTHING &&
-            _table[row + 1][col - 1].color == Color::BLACK) {
-
+        if (col > 0 && (!only_possible || (_table[row + 1][col - 1].figure != Figure::NOTHING &&
+            _table[row + 1][col - 1].color == Color::BLACK &&
+            NoCheckAfterMove(figure_pos, Coords(figure_pos.GetRow() + 1, figure_pos.GetCol() - 1), figure_color)))) {
+            moves.emplace_back(figure_pos.GetRow() + 1, figure_pos.GetCol() - 1);
         }
 
-        if (col < 7 && _table[row + 1][col + 1].figure != Figure::NOTHING &&
-            _table[row + 1][col + 1].color == Color::BLACK) {
-
+        if (col < 7 && (!only_possible || (_table[row + 1][col + 1].figure != Figure::NOTHING &&
+            _table[row + 1][col + 1].color == Color::BLACK &&
+            NoCheckAfterMove(figure_pos, Coords(figure_pos.GetRow() + 1, figure_pos.GetCol() + 1), figure_color)))) {
+            moves.emplace_back(figure_pos.GetRow() + 1, figure_pos.GetCol() + 1);
         }
 
         if (row == 2 && _table[row + 2][col].figure == Figure::NOTHING) {
-
+            Coords coords(figure_pos.GetRow() + 2, figure_pos.GetCol());
+            if (!only_possible || NoCheckAfterMove(figure_pos, coords, figure_color)) {
+                moves.push_back(coords);
+            }
         }
 
         if (_en_passant_square.GetRow() == row + 1 && abs(_en_passant_square.GetCol() - col) == 1) {
-            // push _en_passant_square too
+            if
         }
 
     } else {

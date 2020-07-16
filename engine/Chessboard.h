@@ -19,7 +19,7 @@ enum class Result {
 class Chessboard {
 public:
     Chessboard() noexcept : Chessboard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") { }
-    Chessboard(const std::string& fen);
+    explicit Chessboard(const std::string& fen);
 
     bool MakeMove(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
 
@@ -29,9 +29,9 @@ private:
     typedef std::array<std::array<ColoredFigure, 8>, 8> Table;
 
     bool IsCheck(Color to_player);
-    std::vector<Coords, std::set<Coords>> AllPossibleMoves();
-    std::array<std::array<int, 8>, 8> ProtectedFields(Color by_player);
-    bool NoCheckAfterMove(Coords from, Coords to);
+    bool NoCheckAfterMove(Coords from, Coords to, Color to_player);
+    std::array<std::array<std::vector<Coords>, 8>, 8> AllPossibleMoves(Color for_player);
+    std::array<std::array<std::vector<Coords>, 8>, 8> ProtectedFields(Color by_player);
 
     std::vector<Coords> GetMoves(Coords figure_pos, bool only_possible);
     std::vector<Coords> GetMovesPawn(Coords figure_pos, bool only_possible);
