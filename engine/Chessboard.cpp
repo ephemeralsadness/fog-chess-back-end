@@ -21,7 +21,7 @@ std::map<char, ColoredFigure> char_to_figure = {
 };
 
 
-Chessboard::Chessboard(const std::string& fen) {
+Chessboard::Chessboard(const std::string &fen) {
     // Пример нотации (стартовая позиция): rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
     std::istringstream notation_stream(fen);
     std::string buffer;
@@ -62,10 +62,18 @@ Chessboard::Chessboard(const std::string& fen) {
     if (buffer != "-") {
         for (auto c : buffer) {
             switch (c) {
-                case 'K': _white_can_kingside_castling = true; break;
-                case 'Q': _white_can_queenside_castling = true; break;
-                case 'k': _black_can_kingside_castling = true; break;
-                case 'q': _black_can_queenside_castling = true; break;
+                case 'K':
+                    _white_can_kingside_castling = true;
+                    break;
+                case 'Q':
+                    _white_can_queenside_castling = true;
+                    break;
+                case 'k':
+                    _black_can_kingside_castling = true;
+                    break;
+                case 'q':
+                    _black_can_queenside_castling = true;
+                    break;
             }
         }
     }
@@ -88,13 +96,13 @@ Chessboard::Chessboard(const std::string& fen) {
 
 
 bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
-    ColoredFigure& figure_to_move = _table[from.GetRow()][from.GetCol()];
+    ColoredFigure &figure_to_move = _table[from.GetRow()][from.GetCol()];
 
     if (figure_to_move.color != _current_turn) {
         return false;
     }
 
-    ColoredFigure& figure_to_eat = _table[to.GetRow()][to.GetCol()];
+    ColoredFigure &figure_to_eat = _table[to.GetRow()][to.GetCol()];
     bool is_capture = figure_to_eat.figure != Figure::NOTHING || figure_to_move.figure == Figure::PAWN;
 
     // проверить ход фигуры
@@ -260,7 +268,7 @@ Result Chessboard::Result() {
 }
 
 
-size_t Chessboard::TableHash::operator() (const Table& table) const noexcept {
+size_t Chessboard::TableHash::operator()(const Table &table) const noexcept {
     ColoredFigureHash cf_hash;
     const size_t R = 3;
     size_t hash = 1;
@@ -293,8 +301,6 @@ std::vector<Coords> Chessboard::GetMoves(Coords figure_pos, bool only_possible) 
 }
 
 
-
-
 std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possible) {
     int row = figure_pos.GetRow();
     int col = figure_pos.GetCol();
@@ -309,14 +315,14 @@ std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possib
         }
 
         if (col > 0 && (!only_possible || (_table[row + 1][col - 1].figure != Figure::NOTHING &&
-            _table[row + 1][col - 1].color == Color::BLACK &&
-            NoCheckAfterMove(figure_pos, Coords(row + 1, col - 1), figure_color)))) {
+                                           _table[row + 1][col - 1].color == Color::BLACK &&
+                                           NoCheckAfterMove(figure_pos, Coords(row + 1, col - 1), figure_color)))) {
             moves.emplace_back(row + 1, col - 1);
         }
 
         if (col < 7 && (!only_possible || (_table[row + 1][col + 1].figure != Figure::NOTHING &&
-            _table[row + 1][col + 1].color == Color::BLACK &&
-            NoCheckAfterMove(figure_pos, Coords(row + 1, col + 1), figure_color)))) {
+                                           _table[row + 1][col + 1].color == Color::BLACK &&
+                                           NoCheckAfterMove(figure_pos, Coords(row + 1, col + 1), figure_color)))) {
             moves.emplace_back(row + 1, col + 1);
         }
 
@@ -335,7 +341,7 @@ std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possib
             if (NoCheckAfterMove(figure_pos, _en_passant_square.value(), figure_color)) {
                 moves.push_back(_en_passant_square.value());
             }
-            _table[_en_passant_square->GetRow() + 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
+            _table[_en_passant_square->GetRow() - 1][_en_passant_square->GetCol()] = ColoredFigure(Color::BLACK, Figure::PAWN);
         }
 
     } else {
@@ -369,11 +375,11 @@ std::vector<Coords> Chessboard::GetMovesPawn(Coords figure_pos, bool only_possib
             _table[_en_passant_square->GetRow()][_en_passant_square->GetCol()].figure == Figure::NOTHING &&
             _en_passant_square->GetRow() == row - 1 && abs(_en_passant_square->GetCol() - col) == 1) {
 
-            _table[_en_passant_square->GetRow() - 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
+            _table[_en_passant_square->GetRow() + 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
             if (NoCheckAfterMove(figure_pos, _en_passant_square.value(), figure_color)) {
                 moves.push_back(_en_passant_square.value());
             }
-            _table[_en_passant_square->GetRow() + 1][_en_passant_square->GetCol()].figure = Figure::NOTHING;
+            _table[_en_passant_square->GetRow() + 1][_en_passant_square->GetCol()] = ColoredFigure(Color::WHITE, Figure::PAWN);
         }
 
     }
@@ -393,8 +399,8 @@ std::vector<Coords> Chessboard::GetMovesKnight(Coords figure_pos, bool only_poss
             if ((abs(row - i) == 2 && abs(col - j) == 1) ||
                 (abs(row - i) == 1 && abs(col - j) == 2)) {
                 if (!only_possible || ((_table[i][j].figure == Figure::NOTHING ||
-                    _table[i][j].color != figure_color) &&
-                    NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
+                                        _table[i][j].color != figure_color) &&
+                                       NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
                     moves.emplace_back(i, j);
                 }
             }
@@ -412,59 +418,59 @@ std::vector<Coords> Chessboard::GetMovesBishop(Coords figure_pos, bool only_poss
     int col = figure_pos.GetCol();
     Color figure_color = _table[row][col].color;
     for (int i = row - 1, j = col - 1; i >= 0 && j >= 0; --i, --j) {
-            if (_table[i][j].figure == Figure::NOTHING) {
-                if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
-                    moves.emplace_back(i, j);
-                }
-            } else {
-                if (!only_possible || (_table[i][j].color != figure_color &&
-                    NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
-                    moves.emplace_back(i, j);
-                }
-                break;
+        if (_table[i][j].figure == Figure::NOTHING) {
+            if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
+                moves.emplace_back(i, j);
             }
+        } else {
+            if (!only_possible || (_table[i][j].color != figure_color &&
+                                   NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
+                moves.emplace_back(i, j);
+            }
+            break;
+        }
     }
 
     for (int i = row - 1, j = col + 1; i >= 0 && j < 8; --i, ++j) {
-            if (_table[i][j].figure == Figure::NOTHING) {
-                if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
-                    moves.emplace_back(i, j);
-                }
-            } else {
-                if (!only_possible || (_table[i][j].color != figure_color &&
-                                       NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
-                    moves.emplace_back(i, j);
-                }
-                break;
+        if (_table[i][j].figure == Figure::NOTHING) {
+            if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
+                moves.emplace_back(i, j);
             }
+        } else {
+            if (!only_possible || (_table[i][j].color != figure_color &&
+                                   NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
+                moves.emplace_back(i, j);
+            }
+            break;
         }
+    }
 
     for (int i = row + 1, j = col - 1; i < 8 && j >= 0; ++i, --j) {
-            if (_table[i][j].figure == Figure::NOTHING) {
-                if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
-                    moves.emplace_back(i, j);
-                }
-            } else {
-                if (!only_possible || (_table[i][j].color != figure_color &&
-                                       NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
-                    moves.emplace_back(i, j);
-                }
-                break;
+        if (_table[i][j].figure == Figure::NOTHING) {
+            if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
+                moves.emplace_back(i, j);
             }
+        } else {
+            if (!only_possible || (_table[i][j].color != figure_color &&
+                                   NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
+                moves.emplace_back(i, j);
+            }
+            break;
+        }
     }
 
     for (int i = row + 1, j = col + 1; i < 8 && j < 8; ++i, ++j) {
-            if (_table[i][j].figure == Figure::NOTHING) {
-                if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
-                    moves.emplace_back(i, j);
-                }
-            } else {
-                if (!only_possible || (_table[i][j].color != figure_color &&
-                                       NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
-                    moves.emplace_back(i, j);
-                }
-                break;
+        if (_table[i][j].figure == Figure::NOTHING) {
+            if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
+                moves.emplace_back(i, j);
             }
+        } else {
+            if (!only_possible || (_table[i][j].color != figure_color &&
+                                   NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
+                moves.emplace_back(i, j);
+            }
+            break;
+        }
     }
 
     return moves;
@@ -619,7 +625,7 @@ std::vector<Coords> Chessboard::GetMovesKing(Coords figure_pos, bool only_possib
         for (int j = 0; j < 8; ++j) {
             if (abs(row - i) <= 1 && abs(col - j) <= 1) {
                 if (!only_possible || ((_table[i][j].figure == Figure::NOTHING || _table[i][j].color != figure_color)
-                    && NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
+                                       && NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
                     moves.emplace_back(i, j);
                 }
             }
@@ -700,18 +706,18 @@ bool Chessboard::IsFiftyMovesWithoutCapture() {
 
 
 std::unordered_map<ColoredFigure, char, ColoredFigureHash> figure_to_char = {
-        {{Color::WHITE, Figure::PAWN}, 'P'},
+        {{Color::WHITE, Figure::PAWN},   'P'},
         {{Color::WHITE, Figure::KNIGHT}, 'N'},
         {{Color::WHITE, Figure::BISHOP}, 'B'},
-        {{Color::WHITE, Figure::ROOK}, 'R'},
-        {{Color::WHITE, Figure::QUEEN}, 'Q'},
-        {{Color::WHITE, Figure::KING}, 'K'},
-        {{Color::BLACK, Figure::PAWN}, 'p'},
+        {{Color::WHITE, Figure::ROOK},   'R'},
+        {{Color::WHITE, Figure::QUEEN},  'Q'},
+        {{Color::WHITE, Figure::KING},   'K'},
+        {{Color::BLACK, Figure::PAWN},   'p'},
         {{Color::BLACK, Figure::KNIGHT}, 'n'},
         {{Color::BLACK, Figure::BISHOP}, 'b'},
-        {{Color::BLACK, Figure::ROOK}, 'r'},
-        {{Color::BLACK, Figure::QUEEN}, 'q'},
-        {{Color::BLACK, Figure::KING}, 'k'}
+        {{Color::BLACK, Figure::ROOK},   'r'},
+        {{Color::BLACK, Figure::QUEEN},  'q'},
+        {{Color::BLACK, Figure::KING},   'k'}
 };
 
 // Debug
