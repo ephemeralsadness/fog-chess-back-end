@@ -113,7 +113,7 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
         if (to.GetCol() > from.GetCol()) {
             std::swap(_table[from.GetRow()][7], _table[from.GetRow()][5]);
         } else {
-            std::swap(_table[from.GetRow()][0], _table[from.GetCol()][3]);
+            std::swap(_table[from.GetRow()][0], _table[from.GetRow()][3]);
         }
     }
     figure_to_eat = figure_to_move;
@@ -392,7 +392,8 @@ std::vector<Coords> Chessboard::GetMovesKnight(Coords figure_pos, bool only_poss
         for (int j = 0; j < 8; ++j) {
             if ((abs(row - i) == 2 && abs(col - j) == 1) ||
                 (abs(row - i) == 1 && abs(col - j) == 2)) {
-                if (!only_possible || (_table[i][j].figure == Figure::NOTHING &&
+                if (!only_possible || ((_table[i][j].figure == Figure::NOTHING ||
+                    _table[i][j].color != figure_color) &&
                     NoCheckAfterMove(figure_pos, Coords(i, j), figure_color))) {
                     moves.emplace_back(i, j);
                 }
@@ -452,7 +453,7 @@ std::vector<Coords> Chessboard::GetMovesBishop(Coords figure_pos, bool only_poss
             }
     }
 
-    for (int i = row + 1, j = col + 1; i < 8 && j >= 0; ++i, ++j) {
+    for (int i = row + 1, j = col + 1; i < 8 && j < 8; ++i, ++j) {
             if (_table[i][j].figure == Figure::NOTHING) {
                 if (!only_possible || NoCheckAfterMove(figure_pos, Coords(i, j), figure_color)) {
                     moves.emplace_back(i, j);
@@ -567,7 +568,6 @@ std::vector<Coords> Chessboard::GetCastlingMoves(Coords figure_pos) {
 
     if ((figure_color == Color::WHITE && _white_can_kingside_castling) ||
         (figure_color == Color::BLACK && _black_can_kingside_castling)) {
-        if (IsCheck(figure_color)) return {};
 
         int row = figure_pos.GetRow();
         int col = figure_pos.GetCol();
@@ -578,7 +578,8 @@ std::vector<Coords> Chessboard::GetCastlingMoves(Coords figure_pos) {
             }
         }
 
-        if (first_alpha && attacked_fields[row][col + 1].empty() && attacked_fields[row][col + 2].empty()) {
+        if (first_alpha && attacked_fields[row][col].empty() && attacked_fields[row][col + 1].empty() &&
+            attacked_fields[row][col + 2].empty()) {
             moves.emplace_back(row, col + 2);
         }
 
@@ -586,7 +587,6 @@ std::vector<Coords> Chessboard::GetCastlingMoves(Coords figure_pos) {
 
     if ((figure_color == Color::WHITE && _white_can_queenside_castling) ||
         (figure_color == Color::BLACK && _black_can_queenside_castling)) {
-        if (IsCheck(figure_color)) return {};
 
         int row = figure_pos.GetRow();
         int col = figure_pos.GetCol();
@@ -597,7 +597,8 @@ std::vector<Coords> Chessboard::GetCastlingMoves(Coords figure_pos) {
             }
         }
 
-        if (second_alpha && attacked_fields[row][col + 1].empty() && attacked_fields[row][col + 2].empty()) {
+        if (second_alpha && attacked_fields[row][col].empty() && attacked_fields[row][col - 1].empty() &&
+            attacked_fields[row][col - 2].empty()) {
             moves.emplace_back(row, col - 2);
         }
 
@@ -644,6 +645,15 @@ bool Chessboard::IsMate() {
  * @return
  */
 bool Chessboard::IsImpossibleToMate() {
+    /*
+     * Невозможно поставить мат, если:
+     * 1. Один конь
+     * 2. Два коня
+     * 3. Один слон
+     * 4. Несколько одноцветных слонов
+     */
+
+
     /*
     std::map<Coords, Figure> white_figures;
     std::map<Coords, Figure> black_figures;
