@@ -16,16 +16,18 @@ enum class Result {
     BLACK_WIN
 };
 
+using Table = std::array<std::array<ColoredFigure, 8>, 8>;
+
 class Chessboard {
 public:
     Chessboard() noexcept : Chessboard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") { }
     explicit Chessboard(const std::string& fen);
 
+    const Table& GetTable() const;
     bool MakeMove(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
-    std::string GetFOWFen();
+    std::string GetFOWFen(Color for_player);
     enum Result Result();
 private:
-    typedef std::array<std::array<ColoredFigure, 8>, 8> Table;
 
     bool IsCheck(Color to_player);
     bool NoCheckAfterMove(Coords from, Coords to, Color to_player);
@@ -43,7 +45,6 @@ private:
 
     // функции для проверки на конец партии
     bool IsMate();
-    bool IsImpossibleToMate();
     bool IsStaleMate();
     bool IsTripleRepetition();
     bool IsFiftyMovesWithoutCapture();

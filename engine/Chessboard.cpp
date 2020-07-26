@@ -20,6 +20,21 @@ std::map<char, ColoredFigure> char_to_figure = {
         {'k', {Color::BLACK, Figure::KING}},
 };
 
+std::unordered_map<ColoredFigure, char, ColoredFigureHash> figure_to_char = {
+        {{Color::WHITE, Figure::PAWN},   'P'},
+        {{Color::WHITE, Figure::KNIGHT}, 'N'},
+        {{Color::WHITE, Figure::BISHOP}, 'B'},
+        {{Color::WHITE, Figure::ROOK},   'R'},
+        {{Color::WHITE, Figure::QUEEN},  'Q'},
+        {{Color::WHITE, Figure::KING},   'K'},
+        {{Color::BLACK, Figure::PAWN},   'p'},
+        {{Color::BLACK, Figure::KNIGHT}, 'n'},
+        {{Color::BLACK, Figure::BISHOP}, 'b'},
+        {{Color::BLACK, Figure::ROOK},   'r'},
+        {{Color::BLACK, Figure::QUEEN},  'q'},
+        {{Color::BLACK, Figure::KING},   'k'}
+};
+
 
 Chessboard::Chessboard(const std::string &fen) {
     // Пример нотации (стартовая позиция): rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
@@ -92,6 +107,11 @@ Chessboard::Chessboard(const std::string &fen) {
 
     _was_triple_repetition = false;
     _position_repetitions.emplace(_table, 2);
+}
+
+
+const Table& Chessboard::GetTable() const {
+    return _table;
 }
 
 
@@ -248,8 +268,114 @@ std::array<std::array<std::vector<Coords>, 8>, 8> Chessboard::ProtectedFields(Co
 /**
  * TODO Реализовать метод
  */
-std::string Chessboard::GetFOWFen() {
-    return "";
+std::string Chessboard::GetFOWFen(Color for_player) {
+    // Пример нотации (стартовая позиция): rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    //                                   :
+    std::ostringstream stream;
+    std::array<std::array<bool, 8>, 8> mask;
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            mask[i][j] = false;
+        }
+    }
+
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (_table[i][j].figure != Figure::NOTHING && _table[i][j].color == for_player) {
+                mask[i][j] = true;
+                for (int i0 = std::min(0, i - 1); i0 <= std::max(7, i + 1); ++i0)
+                    for (int j0 = std::min(0, j - 1); j0 <= std::max(7, j + 1); ++j0)
+                        mask[i0][j0] = true;
+            }
+        }
+    }
+
+    auto protected_fields = ProtectedFields(for_player);
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (!protected_fields[i][j].empty()) {
+                mask[i][j] = true;
+            }
+        }
+    }
+
+    Coords king_pos;
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (_table[i][j].figure == Figure::KING && _table[i][j].color == for_player) {
+                king_pos.SetRow(i); king_pos.SetCol(j);
+            }
+        }
+    }
+
+    Color enemy_color = (for_player == Color::WHITE ? Color::BLACK : Color::WHITE);
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if ((_table[i][j].figure == Figure::ROOK || _table[i][j].figure == Figure::QUEEN) && _table[i][j].color != for_player) {
+                if (i == king_pos.GetRow() || j == king_pos.GetCol()) {
+                    mask[i][j] = true;
+                }
+            }
+        }
+    }
+
+    auto enemy_protected_fields = ProtectedFields(enemy_color);
+    for (auto cds : enemy_protected_fields[king_pos.GetRow()][king_pos.GetCol()]) {
+        mask[cds.GetRow()][cds.GetCol()] = true;
+    }
+
+    auto castling_moves = GetCastlingMoves(king_pos);
+    for (auto cds : castling_moves) {
+        for (auto enemy_figure_pos : enemy_protected_fields[cds.GetRow()][cds.GetCol()]) {
+            mask[enemy_figure_pos.GetRow()][enemy_figure_pos.GetCol()] = true;
+        }
+    }
+
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if ((_table[i][j].figure == Figure::BISHOP || _table[i][j].figure == Figure::QUEEN) && _table[i][j].color != for_player) {
+                if ((i - j == king_pos.GetRow() - king_pos.GetCol()) || (i + j == king_pos.GetRow() + king_pos.GetCol())) {
+                    mask[i][j] = true;
+                }
+            }
+        }
+    }
+
+    // + if visible, - if not visible
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (!mask[i][j]) {
+                stream << '-';
+            } else if (_table[i][j].figure == Figure::NOTHING) {
+                stream << '+';
+            } else {
+                stream << figure_to_char.at(_table[i][j]);
+            }
+        }
+    }
+
+    stream << ' ';
+    stream << (_current_turn == Color::WHITE ? 'w' : 'b');
+    stream << ' ';
+    if (_white_can_kingside_castling)
+        stream << 'K';
+    if (_white_can_queenside_castling)
+        stream << 'Q';
+    if (_black_can_kingside_castling)
+        stream << 'k';
+    if (_black_can_queenside_castling)
+        stream << 'q';
+    stream << ' ';
+    if (_en_passant_square.has_value())
+        stream << ('A' + _en_passant_square->GetCol()) << ('1' + _en_passant_square->GetRow());
+    else
+        stream << '-';
+    stream << ' ';
+    stream << _moves_without_capture_counter;
+    stream << ' ';
+    stream << _moves_counter;
+
+    return stream.str();
 }
 
 
@@ -260,7 +386,7 @@ Result Chessboard::Result() {
         } else {
             return Result::WHITE_WIN;
         }
-    } else if (IsStaleMate() || IsFiftyMovesWithoutCapture() || IsImpossibleToMate() || IsTripleRepetition()) {
+    } else if (IsStaleMate() || IsFiftyMovesWithoutCapture() || IsTripleRepetition()) {
         return Result::DRAW;
     }
 
@@ -646,41 +772,6 @@ bool Chessboard::IsMate() {
 }
 
 
-/**
- * TODO реализовать метод
- * @return
- */
-bool Chessboard::IsImpossibleToMate() {
-    /*
-     * Невозможно поставить мат, если:
-     * 1. Один конь
-     * 2. Два коня
-     * 3. Один слон
-     * 4. Несколько одноцветных слонов
-     */
-
-
-    /*
-    std::map<Coords, Figure> white_figures;
-    std::map<Coords, Figure> black_figures;
-
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            if (_table[i][j].figure != Figure::NOTHING) {
-                if (_table[i][j].color == Color::WHITE) {
-                    white_figures.emplace(Coords(i, j), _table[i][j].figure);
-                } else {
-                    black_figures.emplace(Coords(i, j), _table[i][j].figure);
-                }
-            }
-        }
-    }
-    */
-
-    return false;
-}
-
-
 bool Chessboard::IsStaleMate() {
     auto possible_moves = AllPossibleMoves(_current_turn);
     for (int i = 0; i < 8; ++i) {
@@ -703,22 +794,6 @@ bool Chessboard::IsTripleRepetition() {
 bool Chessboard::IsFiftyMovesWithoutCapture() {
     return _moves_without_capture_counter >= 50;
 }
-
-
-std::unordered_map<ColoredFigure, char, ColoredFigureHash> figure_to_char = {
-        {{Color::WHITE, Figure::PAWN},   'P'},
-        {{Color::WHITE, Figure::KNIGHT}, 'N'},
-        {{Color::WHITE, Figure::BISHOP}, 'B'},
-        {{Color::WHITE, Figure::ROOK},   'R'},
-        {{Color::WHITE, Figure::QUEEN},  'Q'},
-        {{Color::WHITE, Figure::KING},   'K'},
-        {{Color::BLACK, Figure::PAWN},   'p'},
-        {{Color::BLACK, Figure::KNIGHT}, 'n'},
-        {{Color::BLACK, Figure::BISHOP}, 'b'},
-        {{Color::BLACK, Figure::ROOK},   'r'},
-        {{Color::BLACK, Figure::QUEEN},  'q'},
-        {{Color::BLACK, Figure::KING},   'k'}
-};
 
 // Debug
 void Chessboard::Print() {
