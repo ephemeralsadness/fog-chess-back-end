@@ -2,6 +2,7 @@
 
 #include <boost/algorithm/string.hpp>
 
+
 void Server::DoSession(tcp::socket &socket) {
     try {
         // Construct the stream by moving in the socket
@@ -39,7 +40,7 @@ void Server::DoSession(tcp::socket &socket) {
     }
 }
 
-void Server::Run(int argc, char* argv[]) {
+void Server::Run(int argc, char *argv[]) {
     try {
         // Check command line arguments.
         if (argc != 3) {
@@ -66,7 +67,7 @@ void Server::Run(int argc, char* argv[]) {
 
             // Launch the session, transferring ownership of the socket
             std::thread{std::bind(
-                    [this](tcp::socket& socket) {
+                    [this](tcp::socket &socket) {
                         this->DoSession(socket);
                     },
                     std::move(socket))}.detach();
@@ -77,21 +78,45 @@ void Server::Run(int argc, char* argv[]) {
     }
 }
 
-std::string Server::HandleRequest(const std::string& request) {
+std::string Server::HandleRequest(const std::string &request) {
     std::istringstream stream(request);
-    std::string method; stream >> method;
+    std::string method;
+    stream >> method;
 
     if (boost::iequals(method, "GET")) {
-        std::string what; stream >> what;
+        std::string what;
+        stream >> what;
 
-        if (boost::iequals(what, ""))
+        // GET LOBBIES
+        if (boost::iequals(what, "LOBBIES")) {
+            std::lock_guard<std::mutex> guard(lobbies_mutex);
+            std::ostringstream output;
+
+            for (auto&[game_id, player] : lobbies) {
+                output << '{' << game_id << ", " << player << "} ";
+            }
+
+            return output.str();
+        }
 
 
         return "Hold this - " + what;
     } else if (boost::iequals(method, "LOBBY")) {
-        std::string what; stream >> what;
+        std::string what;
+        stream >> what;
 
+        if (boost::iequals(what, "ENTER")) {
+            std::lock_guard<std::mutex> guard(lobbies_mutex);
+            unsigned int lobby_id; stream >> lobby_id;
+            auto it = lobbies.find(lobby_id);
+            if (it != lobbies.end()) {
+                lobbies.erase(lobby_id);
+            }
 
+            std::ostringstream output;
+
+            return output.str();
+        }
 
     } else if (boost::iequals(method, "GAME")) {
 
