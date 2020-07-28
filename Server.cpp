@@ -2,6 +2,7 @@
 
 #include <boost/algorithm/string.hpp>
 
+unsigned int MASK_OFF = 0xFFFFFFFE;
 
 void Server::DoSession(tcp::socket &socket) {
     try {
@@ -78,7 +79,25 @@ void Server::Run(int argc, char *argv[]) {
     }
 }
 
+
+std::map<char, ColoredFigure> char_to_figure_2 = {
+        {'P', {Color::WHITE, Figure::PAWN}},
+        {'N', {Color::WHITE, Figure::KNIGHT}},
+        {'B', {Color::WHITE, Figure::BISHOP}},
+        {'R', {Color::WHITE, Figure::ROOK}},
+        {'Q', {Color::WHITE, Figure::QUEEN}},
+        {'K', {Color::WHITE, Figure::KING}},
+        {'p', {Color::BLACK, Figure::PAWN}},
+        {'n', {Color::BLACK, Figure::KNIGHT}},
+        {'b', {Color::BLACK, Figure::BISHOP}},
+        {'r', {Color::BLACK, Figure::ROOK}},
+        {'q', {Color::BLACK, Figure::QUEEN}},
+        {'k', {Color::BLACK, Figure::KING}},
+};
+
 std::string Server::HandleRequest(const std::string &request) {
+    std::cout << request << std::endl;
+
     std::istringstream stream(request);
     std::string method;
     stream >> method;
@@ -111,15 +130,101 @@ std::string Server::HandleRequest(const std::string &request) {
             auto it = lobbies.find(lobby_id);
             if (it != lobbies.end()) {
                 lobbies.erase(lobby_id);
+            } else {
+                return "-";
+            }
+            games.emplace(lobby_id, Game(lobby_id, lobby_id + 1));
+            std::ostringstream output;
+            return std::to_string(lobby_id + 1);
+        } else if (boost::iequals(what, "CREATE")) {
+            std::lock_guard<std::mutex> guard(lobbies_mutex);
+            unsigned int lobby_id = id;
+            {
+                std::lock_guard guard(id_mutex);
+                id += 2;
+            }
+            std::string nickname; stream >> nickname;
+            lobbies.emplace(lobby_id, nickname);
+            return std::to_string(lobby_id);
+        } else if (boost::iequals(what, "REFRESH")) {
+            unsigned int lobby_id; stream >> lobby_id;
+            if (lobbies.count(lobby_id)) {
+                return "-";
             }
 
-            std::ostringstream output;
+            return std::to_string(lobby_id);
+        } else if (boost::iequals(what, "DELETE")) {
+            unsigned int lobby_id; stream >> lobby_id;
+            if (lobbies.count(lobby_id))
+                lobbies.erase(lobby_id);
 
-            return output.str();
+            return "";
         }
 
     } else if (boost::iequals(method, "GAME")) {
+        std::string what;
+        stream >> what;
 
+        if (boost::iequals(what, "BOARD")) {
+            unsigned int game_id; stream >> game_id;
+            unsigned int lobby_id = game_id & MASK_OFF;
+            if (!games.count(lobby_id)) {
+                return "-";
+            }
+
+            Game& game = games.at(lobby_id);
+            Color player_color = (game_id & 1 ? Color::BLACK : Color::WHITE);
+
+            return game.GetChessboard().GetFOWFen(player_color);
+        } else if (boost::iequals(what, "MOVE")) {
+            unsigned int game_id; stream >> game_id;
+            unsigned int lobby_id = game_id & MASK_OFF;
+            if (!games.count(lobby_id)) {
+                return "-";
+            }
+
+            Game& game = games.at(lobby_id);
+            Color player_color = (game_id & 1 ? Color::BLACK : Color::WHITE);
+
+            // from to figure
+            std::string from, to, figure;
+            stream >> from >> to >> figure;
+
+            bool success;
+            if (figure == "-") {
+                success = game.GetChessboard().MakeMove(
+                        Coords(from[1] - '1', from[0] - 'A'),
+                        Coords(to[1] - '1', to[0] - 'A'));
+            } else {
+                if (!char_to_figure_2.count(figure[0])) {
+                    return "-";
+                }
+                Figure fig = char_to_figure_2.at(figure[0]).figure;
+                success = game.GetChessboard().MakeMove(
+                        Coords(from[1] - '1', from[0] - 'A'),
+                        Coords(to[1] - '1', to[0] - 'A'), fig);
+            }
+
+            return success ? "+" : "-";
+        } else if (boost::iequals(what, "RESULT")) {
+            unsigned int lobby_id; stream >> lobby_id;
+            lobby_id &= MASK_OFF;
+            if (!games.count(lobby_id)) {
+                return "-";
+            }
+
+            switch (games.at(lobby_id).GetChessboard().result_cache) {
+                case Result::IN_PROGRESS:
+                    return "0";
+                case Result::DRAW:
+                    return "1";
+                case Result::WHITE_WIN:
+                    return "2";
+                case Result::BLACK_WIN:
+                    return "3";
+            }
+            return "-";
+        }
     }
 
     return "0";
