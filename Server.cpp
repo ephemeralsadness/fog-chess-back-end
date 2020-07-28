@@ -119,7 +119,7 @@ std::string Server::HandleRequest(const std::string &request) {
         }
 
 
-        return "Hold this - " + what;
+        return "-";
     } else if (boost::iequals(method, "LOBBY")) {
         std::string what;
         stream >> what;
@@ -227,7 +227,7 @@ std::string Server::HandleRequest(const std::string &request) {
         }
     }
 
-    return "0";
+    return "-";
 }
 
 
