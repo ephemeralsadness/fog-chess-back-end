@@ -107,6 +107,8 @@ Chessboard::Chessboard(const std::string &fen) {
 
     _was_triple_repetition = false;
     _position_repetitions.emplace(_table, 2);
+
+    result_cache = Result();
 }
 
 
@@ -198,6 +200,7 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
     }
     ++_moves_counter;
 
+    result_cache = Result();
     return true;
 }
 
@@ -283,12 +286,30 @@ std::string Chessboard::GetFOWFen(Color for_player) {
         for (int j = 0; j < 8; ++j) {
             if (_table[i][j].figure != Figure::NOTHING && _table[i][j].color == for_player) {
                 mask[i][j] = true;
-                for (int i0 = std::min(0, i - 1); i0 <= std::max(7, i + 1); ++i0)
-                    for (int j0 = std::min(0, j - 1); j0 <= std::max(7, j + 1); ++j0)
+                for (int i0 = std::max(0, i - 1); i0 <= std::min(7, i + 1); ++i0)
+                    for (int j0 = std::max(0, j - 1); j0 <= std::min(7, j + 1); ++j0)
                         mask[i0][j0] = true;
             }
         }
     }
+
+
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (_table[i][j].color == for_player) {
+                auto v = GetMoves(Coords(i, j), false);
+                for (auto cs : v) {
+                    mask[cs.GetRow()][cs.GetCol()] = true;
+                }
+                if (_table[i][j].figure == Figure::PAWN && for_player == Color::WHITE && i == 1) {
+                    mask[i + 2][j] = true;
+                } else if (_table[i][j].figure == Figure::PAWN && for_player == Color::BLACK && i == 6) {
+                    mask[i - 2][j] = true;
+                }
+            }
+        }
+    }
+
 
     auto protected_fields = ProtectedFields(for_player);
     for (int i = 0; i < 8; ++i) {
@@ -367,7 +388,8 @@ std::string Chessboard::GetFOWFen(Color for_player) {
         stream << 'q';
     stream << ' ';
     if (_en_passant_square.has_value())
-        stream << ('A' + _en_passant_square->GetCol()) << ('1' + _en_passant_square->GetRow());
+        stream << static_cast<char>('A' + _en_passant_square->GetCol())
+               << static_cast<char>('1' + _en_passant_square->GetRow());
     else
         stream << '-';
     stream << ' ';

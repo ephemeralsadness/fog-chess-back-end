@@ -27,11 +27,11 @@ public:
     bool MakeMove(Coords from, Coords to, Figure figure_to_place = Figure::NOTHING);
     std::string GetFOWFen(Color for_player);
     enum Result Result();
+    std::array<std::array<std::vector<Coords>, 8>, 8> AllPossibleMoves(Color for_player);
 private:
 
     bool IsCheck(Color to_player);
     bool NoCheckAfterMove(Coords from, Coords to, Color to_player);
-    std::array<std::array<std::vector<Coords>, 8>, 8> AllPossibleMoves(Color for_player);
     std::array<std::array<std::vector<Coords>, 8>, 8> ProtectedFields(Color by_player);
 
     std::vector<Coords> GetMoves(Coords figure_pos, bool only_possible);
@@ -64,8 +64,8 @@ private:
     int _moves_counter;
     std::unordered_map<Table, int, TableHash> _position_repetitions;
     Table _table;
-
 public:
+    enum Result result_cache;
     // Debug
     void Print();
 };
