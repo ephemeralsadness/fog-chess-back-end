@@ -112,7 +112,7 @@ std::string Server::HandleRequest(const std::string &request) {
             std::ostringstream output;
 
             for (auto&[game_id, player] : lobbies) {
-                output << '{' << game_id << ", " << player << "} ";
+                output << game_id << " " << player << " ";
             }
 
             return output.str();
