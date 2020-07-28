@@ -28,6 +28,7 @@ public:
     std::string GetFOWFen(Color for_player);
     enum Result Result();
     std::array<std::array<std::vector<Coords>, 8>, 8> AllPossibleMoves(Color for_player);
+    enum Color GetCurrentTurn();
 private:
 
     bool IsCheck(Color to_player);

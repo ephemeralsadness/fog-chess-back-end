@@ -224,6 +224,14 @@ std::string Server::HandleRequest(const std::string &request) {
                     return "3";
             }
             return "-";
+        } else if (boost::iequals(what, "TURN")) {
+            unsigned int lobby_id; stream >> lobby_id;
+            lobby_id &= MASK_OFF;
+            if (!games.count(lobby_id)) {
+                return "-";
+            }
+
+            return games.at(lobby_id).GetChessboard().GetCurrentTurn() == Color::WHITE ? "w" : "b";
         }
     }
 

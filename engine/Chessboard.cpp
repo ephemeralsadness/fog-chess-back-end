@@ -205,6 +205,10 @@ bool Chessboard::MakeMove(Coords from, Coords to, Figure figure_to_place) {
 }
 
 
+enum Color Chessboard::GetCurrentTurn() {
+    return _current_turn;
+}
+
 bool Chessboard::IsCheck(Color to_player) {
     Color enemy_color = (to_player == Color::WHITE) ? Color::BLACK : Color::WHITE;
     auto protected_fields = ProtectedFields(enemy_color);
